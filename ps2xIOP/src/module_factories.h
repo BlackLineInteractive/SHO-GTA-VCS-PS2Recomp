@@ -102,6 +102,8 @@ namespace ps2x::iop::detail
     // complete through a SIF command rather than an RPC reply.
     struct RtfsRpcLayout
     {
+        uint32_t initFunction = 1u;
+        uint32_t initSuccessValue = 1u;
         uint32_t openFunction = 3u;
         uint32_t closeFunction = 4u;
         uint32_t readFunction = 5u;

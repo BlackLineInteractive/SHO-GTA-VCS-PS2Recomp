@@ -108,6 +108,18 @@ namespace ps2x::iop::detail
                 {
                     handleClose(request);
                 }
+                else if (request.function == rpc.initFunction)
+                {
+                    // RtSkyIOPFSystemInit treats a zero first word as "no file
+                    // system" and tears the object down (0x274AFC), so the reply
+                    // has to carry a non-zero handle for the mounted volume.
+                    clearReceive(request);
+                    if (request.receive.address != 0u)
+                    {
+                        const uint32_t mounted = m_bindings.rpc.initSuccessValue;
+                        (void)m_host.writeGuest(request.receive.address, &mounted, sizeof(mounted));
+                    }
+                }
                 else
                 {
                     // prepare / configure / filesystem-close: nothing to model,
