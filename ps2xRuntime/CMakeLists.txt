@@ -435,10 +435,10 @@ target_sources(ps2_runtime PRIVATE
 )
 
 file(GLOB RUNNER_SRC_FILES CONFIGURE_DEPENDS
-    "${CMAKE_SOURCE_DIR}/output/*.cpp"
+    "${CMAKE_SOURCE_DIR}/sho/output/*.cpp"
 )
 
-set(RUNNER_MAIN_CPP "${CMAKE_SOURCE_DIR}/output/main.cpp")
+set(RUNNER_MAIN_CPP "${CMAKE_SOURCE_DIR}/sho/output/main.cpp")
 set(ROOT_MAIN_CPP "${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp")
 
 if(EXISTS "${RUNNER_MAIN_CPP}")
