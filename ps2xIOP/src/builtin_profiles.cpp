@@ -70,8 +70,17 @@ namespace ps2x::iop::detail
                 .responseCounterOffset = 4u,
                 .zeroReceiveBuffer = true,
                 .signalNowaitCompletion = true,
-                .completeQueuedPlayStreams = true,
-                .suppressedCompletionCallbacks = {},
+                .suppressedCompletionCallbacks = {0x001FFD70u},
+            };
+        }
+
+        RtfsBindings silentHillRtfsBindings()
+        {
+            return {
+                .serviceName = "RTFS",
+                .sid = 0x00525446u,
+                .firstHandle = 3u,
+                .rpc = {},
             };
         }
 
@@ -92,6 +101,56 @@ namespace ps2x::iop::detail
                 .imageBodyUpperName = "IMG_BD.BIN",
             };
         }
+
+        class GenericRpcStubService final : public IopService
+        {
+        public:
+            GenericRpcStubService(IopHost &host, uint32_t sid, std::string name)
+                : m_host(host), m_sid(sid), m_name(std::move(name)), m_sids{sid}
+            {
+            }
+
+            [[nodiscard]] std::string_view name() const override
+            {
+                return m_name;
+            }
+
+            [[nodiscard]] std::span<const uint32_t> sids() const override
+            {
+                return m_sids;
+            }
+
+            void reset() override
+            {
+            }
+
+            [[nodiscard]] RpcResult handleRpc(const RpcRequest &request) override
+            {
+                if (request.sid != m_sid)
+                {
+                    return {};
+                }
+
+                RpcResult result;
+                result.handled = true;
+                result.resultAddress = request.receive.address;
+                result.signalCompletion = true;
+                result.signalNowaitCompletion = true;
+
+                if (request.receive.address != 0u && request.receive.size != 0u)
+                {
+                    (void)m_host.zeroGuest(request.receive.address, request.receive.size);
+                }
+
+                return result;
+            }
+
+        private:
+            IopHost &m_host;
+            uint32_t m_sid;
+            std::string m_name;
+            std::array<uint32_t, 1> m_sids;
+        };
     }
 
     ServiceList createCoreServices(IopHost &host)
@@ -141,6 +200,31 @@ namespace ps2x::iop::detail
             {
                 ServiceList services;
                 services.emplace_back(createSdrdrvService(host, fatalFrameSdrdrvBindings()));
+                return services;
+            },
+        });
+
+        profiles.push_back({
+            "silent-hill-origins-eu",
+            "builtin",
+            {.elfName = "SLES_551.47"},
+            [](IopHost &host, const GameIdentity &)
+            {
+                ServiceList services;
+                services.emplace_back(createRtfsService(host, silentHillRtfsBindings()));
+                return services;
+            },
+        });
+
+        profiles.push_back({
+            "gta-vcs",
+            "builtin",
+            {.elfName = "SLES_546.22"},
+            [](IopHost &host, const GameIdentity &)
+            {
+                ServiceList services;
+                services.emplace_back(std::make_unique<GenericRpcStubService>(host, 0x65686577u, "WEHE STUB"));
+                services.emplace_back(std::make_unique<GenericRpcStubService>(host, 0x80000006u, "SID_80000006 STUB"));
                 return services;
             },
         });

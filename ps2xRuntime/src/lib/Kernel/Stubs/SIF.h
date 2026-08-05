@@ -54,4 +54,17 @@ namespace ps2_stubs
     void sceSifStopDma(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime);
     void sceSifSyncIop(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime);
     void sceSifWriteBackDCache(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime);
+
+    // A handler registered through sceSifAddCmdHandler(cid, func, harg).
+    // Both halves matter: EE completion handlers commonly locate their state
+    // through harg rather than through the packet.
+    struct SifCmdHandlerBinding
+    {
+        uint32_t function = 0u;
+        uint32_t argument = 0u;
+    };
+
+    // Looks up the EE handler the guest registered for a SIF command id, so an
+    // HLE'd IOP service can deliver completion the way real hardware would.
+    bool lookupSifCmdHandler(uint32_t cid, SifCmdHandlerBinding &binding);
 }

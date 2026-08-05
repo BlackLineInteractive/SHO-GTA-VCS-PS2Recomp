@@ -7,6 +7,12 @@ Also check our [WIKI](https://github.com/ran-j/PS2Recomp/wiki)
 
 This project statically recompiles PS2 ELF binaries into C++ and provides a runtime to execute the generated code.
 
+### 🍴 Fork Information
+
+This fork is specifically tailored and maintained for the static recompilation of the following games:
+* **Silent Hill Origins (SHO)**: Configurations and function maps can be found in the `sho/` directory (including `sho.csv`, `config_from_analyzer.toml`, etc.).
+* **Grand Theft Auto: Vice City Stories (GTA VCS)**: Configurations and function maps can be found in the `gta-vcs/` directory (including `gta.csv`, `gta_analyzer.toml`, etc.).
+
 ### Modules
 
 * `ps2xAnalyzer`: scans ELF/functions and writes TOML config (`stubs`, `skip`, instruction patches).

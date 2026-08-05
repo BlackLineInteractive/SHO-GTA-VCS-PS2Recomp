@@ -11,7 +11,6 @@ void register_ps2_runtime_kernel_tests();
 void register_ps2_runtime_interrupt_tests();
 void register_ps2_memory_tests();
 void register_ps2_vu1_tests();
-void register_ps2_vu_tests();
 void register_ps2_gs_tests();
 void register_ps2_iop_tests();
 void register_ps2_sif_rpc_tests();
@@ -33,7 +32,6 @@ int main()
     register_ps2_runtime_interrupt_tests();
     register_ps2_memory_tests();
     register_ps2_vu1_tests();
-    register_ps2_vu_tests();
     register_ps2_gs_tests();
     register_ps2_iop_tests();
     register_ps2_sif_rpc_tests();

@@ -21,6 +21,12 @@ namespace ps2_syscalls
     PS2_SYSCALL_LIST(PS2_DECLARE_SYSCALL)
 #undef PS2_DECLARE_SYSCALL
 
+    // Directory enumeration backing sceDopen/sceDread/sceDclose. Not real
+    // syscalls, so they stay out of PS2_SYSCALL_LIST.
+    void fioDopen(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime);
+    void fioDread(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime);
+    void fioDclose(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime);
+
     void iDeleteSema(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime);
     void EnableIntcHandler(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime);
     void DisableIntcHandler(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime);

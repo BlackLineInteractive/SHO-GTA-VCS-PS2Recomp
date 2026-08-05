@@ -13,6 +13,7 @@ add_library(ps2_iop STATIC
     src/modules/mcserv.cpp
     src/modules/tsnddrv.cpp
     src/modules/cri_dtx.cpp
+    src/modules/rtfs.cpp
     src/modules/clfile.cpp
     src/modules/sound_update_stub.cpp
     src/modules/sdrdrv.cpp

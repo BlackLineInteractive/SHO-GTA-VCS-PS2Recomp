@@ -23,3 +23,15 @@ android/app/.cxx/
 android/local.properties
 android/.gradle/ 
 .idea/
+my/
+build-run/
+build-test/
+
+
+sho/*
+!sho/*.csv
+!sho/*.toml
+
+gta-vcs/*
+!gta-vcs/*.csv
+!gta-vcs/*.toml

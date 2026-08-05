@@ -14,4 +14,7 @@ namespace ps2_syscalls
     void fioRmdir(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime);
     void fioGetstat(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime);
     void fioRemove(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime);
+    void fioDopen(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime);
+    void fioDread(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime);
+    void fioDclose(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime);
 }

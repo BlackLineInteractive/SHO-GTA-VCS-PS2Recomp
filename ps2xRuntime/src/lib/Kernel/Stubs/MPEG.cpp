@@ -1892,6 +1892,10 @@ namespace ps2_stubs
 
         if (traceIdx < 32u)
         {
+            RUNTIME_LOG("[MPEG:DemuxPssRing] avail=" << availableBytes
+                                                     << " consumed=" << consumed
+                                                     << " decoded=" << decodedCount
+                                                     << " callbacks=" << callbackEvents.size());
             PS2_IF_AGRESSIVE_LOGS({
                 std::cerr << "[MPEG:DemuxPssRing] mpeg=0x" << std::hex << mpegAddr
                           << " data=0x" << dataAddr
@@ -1969,6 +1973,10 @@ namespace ps2_stubs
                 playback.consecutiveEmptyGetPicture++;
                 if (g_mpeg_stub_state.getPictureWaitTraceCount < 32u)
                 {
+                    RUNTIME_LOG("[MPEG:GetPicture] waiting ended=" << playback.streamEnded
+                                                                   << " failed=" << playback.decoderFailed
+                                                                   << " sawInput=" << playback.sawInput
+                                                                   << " consec=" << playback.consecutiveEmptyGetPicture);
                     PS2_IF_AGRESSIVE_LOGS({
                         std::cerr << "[MPEG:GetPicture] waiting for frames, mpeg=0x" << std::hex << mpegAddr
                                   << std::dec << " ended=" << playback.streamEnded

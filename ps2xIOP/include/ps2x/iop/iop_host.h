@@ -90,6 +90,22 @@ namespace ps2x::iop
                                          uint32_t a3,
                                          uint32_t *resultAddress) = 0;
 
+        // Looks up the EE handler the guest registered with sceSifAddCmdHandler
+        // for a SIF command id, returning both the function and the handler
+        // argument. Services that emulate an asynchronous IOP module need this
+        // to deliver completion the way the hardware would; the argument is not
+        // optional, since EE handlers routinely find their state through it.
+        // Defaulted so hosts that do not model SIF commands need not implement it.
+        virtual bool sifCommandHandler(uint32_t commandId,
+                                       uint32_t &function,
+                                       uint32_t &argument) const
+        {
+            (void)commandId;
+            (void)function;
+            (void)argument;
+            return false;
+        }
+
         virtual void log(LogLevel level, std::string_view message) = 0;
     };
 }

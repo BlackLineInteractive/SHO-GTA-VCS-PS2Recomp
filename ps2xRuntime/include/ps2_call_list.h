@@ -227,6 +227,9 @@
     X(sceCdRM)                                \
     X(sceDevVif0Reset)                        \
     X(sceDevVu0Reset)                         \
+    X(sceDopen)                               \
+    X(sceDread)                               \
+    X(sceDclose)                              \
     X(sceFsDbChk)                             \
     X(sceFsIntrSigSema)                       \
     X(sceFsSemExit)                           \

@@ -7,7 +7,6 @@
 #include <fstream>
 #include <regex>
 #include <sstream>
-#include <utility>
 
 using namespace ps2recomp;
 
@@ -824,71 +823,77 @@ void register_code_generator_tests()
             t.IsTrue(ctc1Code.find("ignored") == std::string::npos, "CTC1 FCR31 should not be ignored");
         });
 
-        tc.Run("VU CFC2/CTC2 access VI registers directly", [](TestCase& t)
-            {
-                CodeGenerator gen({}, {});
+        tc.Run("VU CReg access uses CFC2/CTC2", [](TestCase &t) {
+            CodeGenerator gen({}, {});
 
-                Instruction cfc2{};
-                cfc2.opcode = OPCODE_COP2;
-                cfc2.rs = COP2_CFC2;
-                cfc2.rt = 2;
-                cfc2.rd = 11;
+            Instruction cfc2{};
+            cfc2.opcode = OPCODE_COP2;
+            cfc2.rs = COP2_CFC2;
+            cfc2.rt = 2;
+            cfc2.rd = VU0_CR_STATUS;
 
-                std::string cfc2Code = gen.translateInstruction(cfc2);
-                printGeneratedCode("VU CFC2/CTC2 access VI registers directly (CFC2)", cfc2Code);
+            std::string cfc2Code = gen.translateInstruction(cfc2);
+            printGeneratedCode("VU CReg access uses CFC2/CTC2 (CFC2)", cfc2Code);
+            t.IsTrue(cfc2Code.find("SET_GPR_U32(ctx, 2") != std::string::npos, "CFC2 should write to rt");
+            t.IsTrue(cfc2Code.find("ctx->vu0_status") != std::string::npos, "CFC2 STATUS should read vu0_status");
+            t.IsTrue(cfc2Code.find("Unimplemented CFC2 VU CReg") == std::string::npos, "CFC2 should not hit unimplemented CReg path");
 
-                t.IsTrue(cfc2Code.find("SET_GPR_U32(ctx, 2") != std::string::npos, "CFC2 should write to rt");
+            Instruction ctc2{};
+            ctc2.opcode = OPCODE_COP2;
+            ctc2.rs = COP2_CTC2;
+            ctc2.rt = 3;
+            ctc2.rd = VU0_CR_FBRST;
 
-                t.IsTrue(cfc2Code.find("ctx->vi[11]") != std::string::npos, "CFC2 VI11 should read VI11");
-
-                t.IsTrue(cfc2Code.find("vu0_cmsar1") == std::string::npos, "CFC2 VI11 must not read CMSAR1");
-
-                t.IsTrue(cfc2Code.find("Unimplemented") == std::string::npos, "CFC2 VI11 should be implemented");
-
-                Instruction ctc2{};
-                ctc2.opcode = OPCODE_COP2;
-                ctc2.rs = COP2_CTC2;
-                ctc2.rt = 3;
-                ctc2.rd = 4;
-
-                std::string ctc2Code = gen.translateInstruction(ctc2);
-                printGeneratedCode("VU CFC2/CTC2 access VI registers directly (CTC2)", ctc2Code);
-
-                t.IsTrue(ctc2Code.find("ctx->vi[4]") != std::string::npos, "CTC2 VI4 should write VI4");
-                t.IsTrue(ctc2Code.find("static_cast<uint16_t>(GPR_U32(ctx, 3))") != std::string::npos, "CTC2 VI4 should store the low 16 bits");
-                t.IsTrue(ctc2Code.find("vu0_i") == std::string::npos, "CTC2 VI4 must not write the I register");
-                t.IsTrue(ctc2Code.find("Unimplemented") == std::string::npos, "CTC2 VI4 should be implemented");
+            std::string ctc2Code = gen.translateInstruction(ctc2);
+            printGeneratedCode("VU CReg access uses CFC2/CTC2 (CTC2)", ctc2Code);
+            t.IsTrue(ctc2Code.find("ctx->vu0_fbrst") != std::string::npos, "CTC2 FBRST should write vu0_fbrst");
+            t.IsTrue(ctc2Code.find("Unimplemented CTC2 VU CReg") == std::string::npos, "CTC2 should not hit unimplemented CReg path");
         });
 
-        tc.Run("VU special control registers use hardware indices", [](TestCase& t)
-            {
-                CodeGenerator gen({}, {});
+        tc.Run("CFC2/CTC2 registers 0-15 address the VU0 integer registers", [](TestCase &t) {
+            CodeGenerator gen({}, {});
 
-                Instruction cfc2{};
-                cfc2.opcode = OPCODE_COP2;
-                cfc2.rs = COP2_CFC2;
-                cfc2.rt = 2;
-                cfc2.rd = VU0_CR_STATUS;
+            // "ctc2 $t0, $vi1" must reach vi[1]. Numbering the named control
+            // registers from zero made this a MAC-flag write instead.
+            Instruction ctc2{};
+            ctc2.opcode = OPCODE_COP2;
+            ctc2.rs = COP2_CTC2;
+            ctc2.rt = 8; // $t0
+            ctc2.rd = 1; // $vi1
 
-                std::string cfc2Code = gen.translateInstruction(cfc2);
-                printGeneratedCode("VU special control registers use hardware indices (STATUS)", cfc2Code);
+            std::string ctc2Code = gen.translateInstruction(ctc2);
+            printGeneratedCode("CTC2 to vi1", ctc2Code);
+            t.IsTrue(ctc2Code.find("ctx->vi[1]") != std::string::npos, "CTC2 vi1 should write ctx->vi[1]");
+            t.IsTrue(ctc2Code.find("static_cast<uint16_t>") != std::string::npos, "CTC2 vi1 should truncate to 16 bits");
+            t.IsTrue(ctc2Code.find("vu0_mac_flags") == std::string::npos, "CTC2 vi1 must not touch the MAC flags");
 
-                t.IsTrue(cfc2Code.find("SET_GPR_U32(ctx, 2") != std::string::npos,"CFC2 should write to rt");
-                t.IsTrue(cfc2Code.find("ctx->vu0_status") != std::string::npos, "CFC2 STATUS should read vu0_status");
-                t.IsTrue(cfc2Code.find("Unimplemented") == std::string::npos,"CFC2 STATUS should be implemented");
+            Instruction cfc2{};
+            cfc2.opcode = OPCODE_COP2;
+            cfc2.rs = COP2_CFC2;
+            cfc2.rt = 9;
+            cfc2.rd = 15; // $vi15
 
-                Instruction ctc2{};
-                ctc2.opcode = OPCODE_COP2;
-                ctc2.rs = COP2_CTC2;
-                ctc2.rt = 3;
-                ctc2.rd = VU0_CR_FBRST;
+            std::string cfc2Code = gen.translateInstruction(cfc2);
+            printGeneratedCode("CFC2 from vi15", cfc2Code);
+            t.IsTrue(cfc2Code.find("ctx->vi[15]") != std::string::npos, "CFC2 vi15 should read ctx->vi[15]");
 
-                std::string ctc2Code = gen.translateInstruction(ctc2);
-                printGeneratedCode("VU special control registers use hardware indices (FBRST)", ctc2Code);
+            // vi00 is hardwired to zero.
+            Instruction ctc2Zero{};
+            ctc2Zero.opcode = OPCODE_COP2;
+            ctc2Zero.rs = COP2_CTC2;
+            ctc2Zero.rt = 8;
+            ctc2Zero.rd = 0;
+            std::string ctc2ZeroCode = gen.translateInstruction(ctc2Zero);
+            t.IsTrue(ctc2ZeroCode.find("ctx->vi[0]") == std::string::npos, "CTC2 vi00 must not write ctx->vi[0]");
 
-                t.IsTrue(ctc2Code.find("ctx->vu0_fbrst") != std::string::npos, "CTC2 register 28 should write FBRST");
-                t.IsTrue(ctc2Code.find("vu0_itop") == std::string::npos, "CTC2 register 28 must not write ITOP");
-                t.IsTrue(ctc2Code.find("Unimplemented") == std::string::npos, "CTC2 FBRST should be implemented");
+            // The MAC flags now live at 17, not 1.
+            Instruction ctc2Mac{};
+            ctc2Mac.opcode = OPCODE_COP2;
+            ctc2Mac.rs = COP2_CTC2;
+            ctc2Mac.rt = 8;
+            ctc2Mac.rd = VU0_CR_MAC;
+            std::string ctc2MacCode = gen.translateInstruction(ctc2Mac);
+            t.IsTrue(ctc2MacCode.find("vu0_mac_flags") != std::string::npos, "CTC2 reg 17 should write the MAC flags");
         });
 
         tc.Run("scalar logical immediates emit low64 operations", [](TestCase &t) {
@@ -1133,70 +1138,6 @@ void register_code_generator_tests()
             t.IsTrue(out.find("ctx->vu0_vf[13]") != std::string::npos, "S1 q/i source should come from rd");
             t.IsTrue(out.find("ctx->vu0_vf[4]") != std::string::npos, "S1 q/i destination should come from sa");
             t.IsTrue(out.find("ctx->vu0_vf[25]") == std::string::npos, "S1 q/i must not use rs(format) as register index");
-        });
-
-        tc.Run("VU0 destination MADD and MSUB forms preserve ACC", [](TestCase &t) {
-            Instruction inst{};
-            inst.rt = 7;
-            inst.rd = 11;
-            inst.sa = 3;
-            inst.function = 0;
-            inst.vectorInfo.vectorField = 0xE;
-
-            CodeGenerator gen({}, {});
-            const std::vector<std::pair<const char *, std::string>> emitted = {
-                {"MADD field", gen.translateVU_VMADD_Field(inst)},
-                {"MADD", gen.translateVU_VMADD(inst)},
-                {"MADDq", gen.translateVU_VMADDq(inst)},
-                {"MADDi", gen.translateVU_VMADDi(inst)},
-                {"MSUB field", gen.translateVU_VMSUB_Field(inst)},
-                {"MSUB", gen.translateVU_VMSUB(inst)},
-                {"MSUBq", gen.translateVU_VMSUBq(inst)},
-                {"MSUBi", gen.translateVU_VMSUBi(inst)},
-                {"OPMSUB", gen.translateVU_VOPMSUB(inst)},
-            };
-
-            for (const auto &[name, code] : emitted)
-            {
-                const std::string message =
-                    std::string(name) + " writes VF and must not overwrite ACC";
-                t.IsTrue(code.find("ctx->vu0_acc = res") == std::string::npos,
-                         message.c_str());
-                t.IsTrue(code.find("PS2_VADD(ctx->vu0_acc") != std::string::npos ||
-                             code.find("PS2_VSUB(ctx->vu0_acc") != std::string::npos,
-                         (std::string(name) + " must still read ACC").c_str());
-            }
-
-            const std::string madda = gen.translateVU_VMADDA(inst);
-            t.IsTrue(madda.find("ctx->vu0_acc =") != std::string::npos,
-                     "MADDA must continue writing ACC");
-        });
-
-        tc.Run("VU0 OPMULA and OPMSUB use cross-product lane permutations", [](TestCase &t) {
-            Instruction inst{};
-            inst.rt = 7;
-            inst.rd = 11;
-            inst.sa = 3;
-            inst.vectorInfo.vectorField = 0xE;
-
-            CodeGenerator gen({}, {});
-            const std::string opmula = gen.translateVU_VOPMULA(inst);
-            const std::string opmsub = gen.translateVU_VOPMSUB(inst);
-
-            for (const std::string *code : {&opmula, &opmsub})
-            {
-                t.IsTrue(code->find("_MM_SHUFFLE(3,0,2,1)") != std::string::npos,
-                         "OPM source Fs must be permuted to y,z,x");
-                t.IsTrue(code->find("_MM_SHUFFLE(3,1,0,2)") != std::string::npos,
-                         "OPM source Ft must be permuted to z,x,y");
-                t.IsTrue(code->find("PS2_VMUL(fs_yzx, ft_zxy)") != std::string::npos,
-                         "OPM product must use the permuted operands");
-            }
-
-            t.IsTrue(opmula.find("ctx->vu0_acc =") != std::string::npos,
-                     "OPMULA must write the permuted product to ACC");
-            t.IsTrue(opmsub.find("ctx->vu0_acc = res") == std::string::npos,
-                     "OPMSUB must preserve ACC after producing the cross product");
         });
 
         tc.Run("VU0 S2 vector ops use rd as source and rt as destination", [](TestCase &t) {

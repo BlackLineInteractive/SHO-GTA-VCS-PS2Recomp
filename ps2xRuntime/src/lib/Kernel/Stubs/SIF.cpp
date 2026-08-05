@@ -57,7 +57,12 @@ namespace ps2_stubs
         std::mutex g_sifHeapMutex;
         std::unordered_map<uint32_t, uint32_t> g_sifRegs;
         std::unordered_map<uint32_t, uint32_t> g_sifSregs;
-        std::unordered_map<uint32_t, uint32_t> g_sifCmdHandlers;
+        // sceSifAddCmdHandler takes (cid, func, harg). The handler argument is
+        // not optional: EE-side completion handlers routinely reach their state
+        // through it (Silent Hill Origins' RTFS read-completion handler at
+        // 0x274E48 does "lw $a0, 0x58($a1)" to find its file table), so dropping
+        // it makes every such handler unusable.
+        std::unordered_map<uint32_t, SifCmdHandlerBinding> g_sifCmdHandlers;
         std::map<uint32_t, uint32_t> g_sifHeapAllocations;
         uint32_t g_sifCmdBuffer = 0u;
         uint32_t g_sifSysCmdBuffer = 0u;
@@ -304,8 +309,14 @@ namespace ps2_stubs
     {
         const uint32_t cid = getRegU32(ctx, 4);
         const uint32_t handler = getRegU32(ctx, 5);
-        std::lock_guard<std::mutex> lock(g_sifCmdStateMutex);
-        g_sifCmdHandlers[cid] = handler;
+        const uint32_t handlerArg = getRegU32(ctx, 6);
+        {
+            std::lock_guard<std::mutex> lock(g_sifCmdStateMutex);
+            g_sifCmdHandlers[cid] = SifCmdHandlerBinding{handler, handlerArg};
+        }
+        RUNTIME_LOG("[SifAddCmdHandler] cid=0x" << std::hex << cid
+                                                << " func=0x" << handler
+                                                << " arg=0x" << handlerArg << std::dec);
         setReturnS32(ctx, 0);
     }
 
@@ -587,6 +598,18 @@ namespace ps2_stubs
         std::lock_guard<std::mutex> lock(g_sifCmdStateMutex);
         g_sifCmdHandlers.erase(cid);
         setReturnS32(ctx, 0);
+    }
+
+    bool lookupSifCmdHandler(uint32_t cid, SifCmdHandlerBinding &binding)
+    {
+        std::lock_guard<std::mutex> lock(g_sifCmdStateMutex);
+        const auto it = g_sifCmdHandlers.find(cid);
+        if (it == g_sifCmdHandlers.end() || it->second.function == 0u)
+        {
+            return false;
+        }
+        binding = it->second;
+        return true;
     }
 
     void sceSifRemoveRpc(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)

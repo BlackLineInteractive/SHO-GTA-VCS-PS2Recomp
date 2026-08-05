@@ -98,6 +98,39 @@ namespace ps2x::iop::detail
         ClFileRpcLayout rpc;
     };
 
+    // RTFSSIOP.IRX (RenderWare Studio / Climax). Sector oriented, and reads
+    // complete through a SIF command rather than an RPC reply.
+    struct RtfsRpcLayout
+    {
+        uint32_t openFunction = 3u;
+        uint32_t closeFunction = 4u;
+        uint32_t readFunction = 5u;
+        uint32_t seekFunction = 6u;
+        uint32_t pathBytes = 0x40u;
+        uint32_t sectorBytes = 0x800u;
+        uint32_t maximumReadBytes = 0x200000u;
+        uint32_t replyHandleOffset = 0u;
+        uint32_t replySizeOffset = 4u;
+        // Completion: the guest registers the handler itself, so only the
+        // command id is fixed by the module.
+        uint32_t readCompleteCommandId = 4u;
+        uint32_t packetBytes = 0x20u;
+        uint32_t packetIndexOffset = 0x0Cu;
+        // Layout of the EE-side file table reached through the handler argument.
+        uint32_t fileTablePointerOffset = 0x58u;
+        uint32_t fileTableStride = 0x80u;
+        uint32_t fileHandleOffset = 0x64u;
+        uint32_t fileTableEntries = 64u;
+    };
+
+    struct RtfsBindings
+    {
+        std::string serviceName;
+        uint32_t sid = 0u;
+        uint32_t firstHandle = 3u;
+        RtfsRpcLayout rpc;
+    };
+
     // TODO This is for the lord of the rings better name for that one
     struct SoundUpdateStubBindings
     {
@@ -107,7 +140,6 @@ namespace ps2x::iop::detail
         uint32_t responseCounterOffset = 0u;
         bool zeroReceiveBuffer = true;
         bool signalNowaitCompletion = false;
-        bool completeQueuedPlayStreams = false;
         std::vector<uint32_t> suppressedCompletionCallbacks;
     };
 
@@ -152,6 +184,7 @@ namespace ps2x::iop::detail
     std::unique_ptr<IopService> createTsnddrvService(IopHost &host, TsnddrvBindings bindings);
     std::unique_ptr<IopService> createCriDtxService(IopHost &host, CriDtxBindings bindings);
     std::unique_ptr<IopService> createClFileService(IopHost &host, ClFileBindings bindings);
+    std::unique_ptr<IopService> createRtfsService(IopHost &host, RtfsBindings bindings);
     std::unique_ptr<IopService> createSoundUpdateStubService(IopHost &host, SoundUpdateStubBindings bindings);
     std::unique_ptr<IopService> createSdrdrvService(IopHost &host, SdrdrvBindings bindings);
 }

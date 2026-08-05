@@ -4,6 +4,7 @@
 #include "ps2_stubs.h"
 #include "runtime/ps2_memory.h"
 #include "Kernel/Stubs/MemoryCard.h"
+#include "Kernel/Stubs/SIF.h"
 #include "Kernel/Syscalls/Common.h"
 
 #include <algorithm>
@@ -473,6 +474,20 @@ bool PS2IopHostAdapter::invokeGuestFunction(uint64_t callToken,
                              a2,
                              a3,
                              resultAddress);
+}
+
+bool PS2IopHostAdapter::sifCommandHandler(uint32_t commandId,
+                                          uint32_t &function,
+                                          uint32_t &argument) const
+{
+    ps2_stubs::SifCmdHandlerBinding binding;
+    if (!ps2_stubs::lookupSifCmdHandler(commandId, binding))
+    {
+        return false;
+    }
+    function = binding.function;
+    argument = binding.argument;
+    return true;
 }
 
 void PS2IopHostAdapter::log(ps2x::iop::LogLevel level, std::string_view message)

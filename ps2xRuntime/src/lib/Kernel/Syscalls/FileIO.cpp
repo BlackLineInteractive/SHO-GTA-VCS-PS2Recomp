@@ -42,8 +42,11 @@ namespace ps2_syscalls
 
     static const char *translateFioMode(int ps2Flags)
     {
-        bool read = (ps2Flags & PS2_FIO_O_RDONLY) || (ps2Flags & PS2_FIO_O_RDWR);
-        bool write = (ps2Flags & PS2_FIO_O_WRONLY) || (ps2Flags & PS2_FIO_O_RDWR);
+        // O_RDWR is O_RDONLY|O_WRONLY, so each direction is a single bit test.
+        // Masking against O_RDWR would make a plain O_RDONLY look writable and
+        // open read-only game data as "r+b".
+        bool read = (ps2Flags & PS2_FIO_O_RDONLY) != 0;
+        bool write = (ps2Flags & PS2_FIO_O_WRONLY) != 0;
         bool append = (ps2Flags & PS2_FIO_O_APPEND);
         bool create = (ps2Flags & PS2_FIO_O_CREAT);
         bool truncate = (ps2Flags & PS2_FIO_O_TRUNC);
@@ -512,5 +515,160 @@ namespace ps2_syscalls
             RUNTIME_LOG("fioRemove: Removed file '" << hostPath << "'");
             setReturnS32(ctx, 0); // Success
         }
+    }
+
+    // Directory enumeration.
+    //
+    // The listing is snapshotted at open time so a guest that keeps a dirent
+    // handle open across frames sees a stable sequence, and so host directory
+    // changes cannot invalidate an iterator we are holding.
+    namespace
+    {
+        struct Ps2DirStream
+        {
+            std::vector<std::filesystem::directory_entry> entries;
+            std::size_t next = 0;
+        };
+
+        std::mutex g_dirMutex;
+        std::unordered_map<int, Ps2DirStream> g_dirStreams;
+        int g_nextDirFd = 1;
+
+        // sce_dirent is a 64-byte sce_stat (the 40 documented bytes plus six
+        // words of private data) followed by char d_name[256] and a private
+        // pointer. Guests read the type bits from d_stat.st_mode and the name
+        // at +0x40.
+        constexpr uint32_t kDirentNameOffset = 0x40u;
+        constexpr uint32_t kDirentSize = 0x144u;
+        constexpr uint32_t kDirentNameCapacity = 256u;
+        constexpr uint32_t kFioSIFDIR = 0x1000u;
+        constexpr uint32_t kFioSIFREG = 0x2000u;
+
+        void storeDirentU32(uint8_t *base, uint32_t offset, uint32_t value)
+        {
+            std::memcpy(base + offset, &value, sizeof(value));
+        }
+    }
+
+    void fioDopen(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
+    {
+        uint32_t pathAddr = getRegU32(ctx, 4); // $a0
+
+        const char *ps2Path = reinterpret_cast<const char *>(getConstMemPtr(rdram, pathAddr));
+        if (!ps2Path)
+        {
+            std::cerr << "fioDopen error: Invalid path address" << std::endl;
+            setReturnS32(ctx, -1);
+            return;
+        }
+
+        std::string hostPath = translatePs2Path(ps2Path);
+        if (hostPath.empty())
+        {
+            std::cerr << "fioDopen error: Failed to translate path '" << ps2Path << "'" << std::endl;
+            setReturnS32(ctx, -1);
+            return;
+        }
+
+        std::error_code ec;
+        std::filesystem::directory_iterator it(hostPath, ec);
+        if (ec)
+        {
+            std::cerr << "fioDopen error: cannot open directory '" << hostPath
+                      << "': " << ec.message() << std::endl;
+            setReturnS32(ctx, -1);
+            return;
+        }
+
+        // "." and ".." are deliberately not reported: the disc filesystem does
+        // not list them either, and guests that walk a tree would recurse.
+        Ps2DirStream stream;
+        for (const auto &entry : it)
+        {
+            stream.entries.push_back(entry);
+        }
+
+        const std::size_t entryCount = stream.entries.size();
+        int dirFd = 0;
+        {
+            std::lock_guard<std::mutex> lock(g_dirMutex);
+            dirFd = g_nextDirFd++;
+            g_dirStreams[dirFd] = std::move(stream);
+        }
+
+        RUNTIME_LOG("fioDopen: '" << hostPath << "' fd=" << dirFd
+                                  << " entries=" << entryCount);
+        setReturnS32(ctx, dirFd);
+    }
+
+    void fioDread(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
+    {
+        int dirFd = (int)getRegU32(ctx, 4);   // $a0
+        uint32_t bufAddr = getRegU32(ctx, 5); // $a1
+
+        uint8_t *dirent = getMemPtr(rdram, bufAddr);
+        if (!dirent)
+        {
+            std::cerr << "fioDread error: Invalid dirent address 0x" << std::hex << bufAddr
+                      << std::dec << std::endl;
+            setReturnS32(ctx, -1);
+            return;
+        }
+
+        std::lock_guard<std::mutex> lock(g_dirMutex);
+        auto streamIt = g_dirStreams.find(dirFd);
+        if (streamIt == g_dirStreams.end())
+        {
+            std::cerr << "fioDread error: Invalid directory descriptor " << dirFd << std::endl;
+            setReturnS32(ctx, -1);
+            return;
+        }
+
+        Ps2DirStream &stream = streamIt->second;
+        if (stream.next >= stream.entries.size())
+        {
+            setReturnS32(ctx, 0); // end of directory
+            return;
+        }
+
+        const std::filesystem::directory_entry &entry = stream.entries[stream.next++];
+
+        std::error_code ec;
+        const bool isDirectory = entry.is_directory(ec);
+        uint64_t fileSize = 0;
+        if (!ec && !isDirectory)
+        {
+            fileSize = static_cast<uint64_t>(entry.file_size(ec));
+            if (ec)
+            {
+                fileSize = 0;
+            }
+        }
+
+        std::memset(dirent, 0, kDirentSize);
+        storeDirentU32(dirent, 0, (isDirectory ? kFioSIFDIR : kFioSIFREG) | 0x1FFu); // st_mode
+        storeDirentU32(dirent, 8, static_cast<uint32_t>(fileSize));                  // st_size
+        storeDirentU32(dirent, 36, static_cast<uint32_t>(fileSize >> 32));           // st_hisize
+
+        const std::string name = entry.path().filename().string();
+        const std::size_t nameLength = std::min<std::size_t>(name.size(), kDirentNameCapacity - 1);
+        std::memcpy(dirent + kDirentNameOffset, name.data(), nameLength);
+
+        setReturnS32(ctx, 1); // an entry was produced
+    }
+
+    void fioDclose(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
+    {
+        int dirFd = (int)getRegU32(ctx, 4); // $a0
+
+        std::lock_guard<std::mutex> lock(g_dirMutex);
+        if (g_dirStreams.erase(dirFd) == 0)
+        {
+            std::cerr << "fioDclose warning: Invalid directory descriptor " << dirFd << std::endl;
+            setReturnS32(ctx, -1);
+            return;
+        }
+
+        setReturnS32(ctx, 0);
     }
 }

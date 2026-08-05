@@ -79,6 +79,10 @@ public:
                              uint32_t a3,
                              uint32_t *resultAddress) override;
 
+    bool sifCommandHandler(uint32_t commandId,
+                           uint32_t &function,
+                           uint32_t &argument) const override;
+
     void log(ps2x::iop::LogLevel level, std::string_view message) override;
 
 private:

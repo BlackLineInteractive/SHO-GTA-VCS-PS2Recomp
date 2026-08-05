@@ -65,6 +65,21 @@ namespace ps2_stubs
         ps2_syscalls::fioClose(rdram, ctx, runtime);
     }
 
+    void sceDopen(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
+    {
+        ps2_syscalls::fioDopen(rdram, ctx, runtime);
+    }
+
+    void sceDread(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
+    {
+        ps2_syscalls::fioDread(rdram, ctx, runtime);
+    }
+
+    void sceDclose(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
+    {
+        ps2_syscalls::fioDclose(rdram, ctx, runtime);
+    }
+
     void sceFsInit(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
     {
         setReturnS32(ctx, 0);

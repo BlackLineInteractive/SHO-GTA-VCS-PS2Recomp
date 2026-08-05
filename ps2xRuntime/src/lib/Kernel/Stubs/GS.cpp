@@ -936,6 +936,12 @@ namespace ps2_stubs
 
     void sceGsPutDispEnv(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
     {
+        static uint32_t s_putDispEnvCalls = 0u;
+        if (s_putDispEnvCalls < 8u)
+        {
+            RUNTIME_LOG("[GS:PutDispEnv] call #" << s_putDispEnvCalls);
+            ++s_putDispEnvCalls;
+        }
         uint32_t envAddr = getRegU32(ctx, 4);
         GsDispEnvMem env{};
         if (!readGsDispEnv(rdram, envAddr, env))
@@ -1367,6 +1373,13 @@ namespace ps2_stubs
 
     void sceGsSwapDBuff(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
     {
+        static uint32_t s_swapCalls = 0u;
+        if (s_swapCalls < 8u)
+        {
+            RUNTIME_LOG("[GS:SwapDBuff] call #" << s_swapCalls
+                                                << " vsyncTick=" << ps2_syscalls::GetCurrentVSyncTick());
+            ++s_swapCalls;
+        }
         const uint32_t envAddr = getRegU32(ctx, 4);
         const uint32_t which = getRegU32(ctx, 5) & 1u;
 

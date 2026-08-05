@@ -288,12 +288,12 @@ namespace ps2recomp
         MMI2_PMULTW = 0x0C,
         MMI2_PDIVW = 0x0D,
         MMI2_PCPYLD = 0x0E,
-        MMI2_PMADDH = 0x10,
-        MMI2_PHMADH = 0x11,
         MMI2_PAND = 0x12,
         MMI2_PXOR = 0x13,
-        MMI2_PMSUBH = 0x14,
-        MMI2_PHMSBH = 0x15,
+        MMI2_PMADDH = 0x14,
+        MMI2_PHMADH = 0x15,
+        MMI2_PMSUBH = 0x18,
+        MMI2_PHMSBH = 0x19,
         MMI2_PEXEH = 0x1A,
         MMI2_PREVH = 0x1B,
         MMI2_PMULTH = 0x1C,
@@ -670,21 +670,29 @@ namespace ps2recomp
     //     VU0_VLDQ = 0x1F    // VU0 Load/Store Quad with Decrement
     // };
 
-    // VU0 COP2 control register numbers used by CFC2/CTC2.
-    // Registers 0..15 address VI0..VI15 directly.
+    // VU0 macro-mode COP2 control register numbers (used with CFC2/CTC2), per
+    // the EE Core User's Manual. Registers 0-15 are the VU0 integer registers
+    // vi00-vi15; the named control registers only start at 16, and the gaps
+    // (19, 23-25, 30) are reserved.
+    //
+    // These used to be numbered 0-29 with no room for the integer registers, so
+    // every vi01-vi15 access was translated as an unrelated control register:
+    // "ctc2 $t0, $vi1" emitted a MAC-flag write instead of a write to vi[1].
     enum VU0ControlRegisters
     {
-        VU0_CR_STATUS = 16,
-        VU0_CR_MAC = 17,
-        VU0_CR_CLIP = 18,
-        VU0_CR_R = 20,
-        VU0_CR_I = 21,
-        VU0_CR_Q = 22,
-        VU0_CR_TPC = 26,
-        VU0_CR_CMSAR0 = 27,
-        VU0_CR_FBRST = 28,
-        VU0_CR_VPU_STAT = 29,
-        VU0_CR_CMSAR1 = 31
+        VU0_CR_VI_FIRST = 0, // vi00 .. vi15 occupy 0-15
+        VU0_CR_VI_LAST = 15,
+        VU0_CR_STATUS = 16,   // Status flag
+        VU0_CR_MAC = 17,      // MAC flags
+        VU0_CR_CLIP = 18,     // Clipping flags
+        VU0_CR_R = 20,        // R register (random)
+        VU0_CR_I = 21,        // I register (immediate)
+        VU0_CR_Q = 22,        // Q register (quotient)
+        VU0_CR_TPC = 26,      // TPC (VU0 program counter)
+        VU0_CR_CMSAR0 = 27,   // Microprogram start address 0
+        VU0_CR_FBRST = 28,    // VIF/VU reset register
+        VU0_CR_VPU_STAT = 29, // VPU-STAT register
+        VU0_CR_CMSAR1 = 31    // Microprogram start address 1
     };
     enum VU0OPSFunctions
     {
