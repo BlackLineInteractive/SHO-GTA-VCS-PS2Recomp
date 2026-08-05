@@ -76,9 +76,20 @@ namespace ps2x::iop::detail
                     return {};
                 }
 
+                m_host.log(LogLevel::Info,
+                           "RTFS rpc fn=" + std::to_string(request.function) +
+                               " send=0x" + toHex(request.send.address) + "/" +
+                               std::to_string(request.send.size) +
+                               " recv=0x" + toHex(request.receive.address) + "/" +
+                               std::to_string(request.receive.size));
+
                 RpcResult result;
                 result.handled = true;
                 result.resultAddress = request.receive.address;
+                // The generic unhandled-RPC path used to signal the client's
+                // completion semaphore. Claiming the sid without doing the same
+                // leaves callers of the reply-less commands waiting forever.
+                result.signalCompletion = true;
 
                 const RtfsRpcLayout &rpc = m_bindings.rpc;
                 if (request.function == rpc.openFunction)
