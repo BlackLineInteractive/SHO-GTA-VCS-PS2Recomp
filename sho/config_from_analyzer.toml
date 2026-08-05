@@ -7,14 +7,15 @@
 # - no SCE symbol database is used by this Ghidra script
 
 [general]
-input = "/Users/vovavovchok/Recomp Project/PS2Recomp(my)/original_iso/SLES_551.47"
-output = "/Users/vovavovchok/Recomp Project/PS2Recomp(my)/output"
-ghidra_output = "/Users/vovavovchok/Recomp Project/PS2Recomp(my)/sho1.csv"
+input = "/Users/vovavovchok/Recomp Project/PS2Recomp-my/sho/original_iso/SLES_551.47"
+output = "/Users/vovavovchok/Recomp Project/PS2Recomp-my/sho/output"
+ghidra_output = "/Users/vovavovchok/Recomp Project/PS2Recomp-my/sho/sho.csv"
 single_file_output = false
 patch_syscalls = false
 patch_cop0 = true
 patch_cache = true
 stubs = [
+    "sceDbcInit",
   "SetGsCrt@0x00321420",
   "AddIntcHandler@0x00321500",
   "AddIntcHandler@0x00321510",
@@ -69,6 +70,7 @@ stubs = [
   "InitTLB@0x00321C90",
 ]
 untracked_stubs = [
+    "sceDbcInit",
 ]
 skip = []
 

@@ -140,6 +140,7 @@
 
 // Stubs
 #define PS2_STUB_LIST(X)                      \
+    X(sceDbcInit)                             \
     /* Std/Libc */                            \
     X(ret0)                                   \
     X(ret1)                                   \

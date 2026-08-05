@@ -181,3 +181,7 @@ namespace ps2_game_overrides
         }
     }
 }
+
+namespace ps2_stubs { void sceDbcInit(uint8_t* rdram, R5900Context* ctx, PS2Runtime *runtime) {
+    setReturnU32(ctx, 1);
+} }

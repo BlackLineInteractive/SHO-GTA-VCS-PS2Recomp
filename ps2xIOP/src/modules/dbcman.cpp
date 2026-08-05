@@ -49,6 +49,7 @@ namespace ps2x::iop::detail
 
                 result.handled = true;
                 result.resultAddress = request.receive.address;
+                result.signalCompletion = true;
                 if (request.receive.address == 0u || request.receive.size == 0u)
                 {
                     return result;
